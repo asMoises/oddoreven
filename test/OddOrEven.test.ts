@@ -3,6 +3,7 @@ import { network } from "hardhat";
 
 const { ethers, networkHelpers } = await network.create();
 
+// Cria a estrutura de dados de uma partida 
 type GameData = {
   hashOptionP1: string; // Hash of Player 1's option
   timeOut: string; // Timeout duration in seconds (uint64)
@@ -17,6 +18,9 @@ type GameData = {
   keyGame: string; // Player 1's keygame
 };
 
+// recupera dados crus da BC e organiza nos atributos, 
+// considerando a posição no array bruto em que chegaram.
+// Todos são strings, e os options recebem casting pra Number.
 function fetchGameData(rawGameData: any) {
   const gameData: GameData = {
     hashOptionP1: rawGameData[0],
@@ -34,6 +38,8 @@ function fetchGameData(rawGameData: any) {
   return gameData;
 }
 
+// Esta função recebe a seed e verifica se será um hex de tamanho par
+// Depois, devolve um array de bytes com metade do tamanho.
 function hexStringToUint8Array(hexString: string): Uint8Array {
   // Ensure the hex string length is even
   if (hexString.length % 2 !== 0) {
@@ -43,64 +49,80 @@ function hexStringToUint8Array(hexString: string): Uint8Array {
   // Convert the string into an array of bytes
   const byteArray = new Uint8Array(hexString.length / 2);
   for (let i = 0; i < byteArray.length; i++) {
-    const byte = hexString.substring(i * 2, i * 2 + 2);
+    const byte = hexString.substring(i * 2, i * 2 + 2); // a1 b2 c3 d4
     byteArray[i] = parseInt(byte, 16);
   }
 
-  return byteArray;
+  return byteArray; // isso se torna o meu keySeed
 }
 
 let keySeed = hexStringToUint8Array("abcddbe576b4818846aa77e82f4ed5fa78f92766b141f282d36703886d196df39322",); // Transforma a seed em um array de bytes
 let gameKey = ethers.keccak256(keySeed); // chama a criptografia pra criar a chave do jogo.
+const modifiedGameKey = gameKey.substring(2); // remove o prefixo "0x" do gameKey para ser usadono hash
 
-// Função auxiliar que recebe a opção e devolve a keygame + o hash do commit prontos.
-function buildCommit(option: number, key: string = gameKey) {
-  const keygame = key.substring(2); // remove o prefixo "0x" do gameKey
-  let optionStr = option.toString(16); // converte a opção do player 1 para hexadecimal
-  while (optionStr.length % 2 === 1) optionStr = "0" + optionStr; // padding: garante nº par de caracteres (1 byte = 2 chars)
+// Função auxiliar que recebe a opção do joagador,
+// Recebe (por padrão) a gameKey (vindo da criptografia)
+// Devolve o hash
+function buildCommit(option: number, key: string = modifiedGameKey) {
+  let optionStr = option.toString(16); // converte a opção do player 1 para base 16
+
+  // Percorre o hex para garantir que será par, adicionando um zero antes se necessário
+  // Precisa ser par para formar duplas de caracteres sempre.
+  while (optionStr.length % 2 === 1) optionStr = "0" + optionStr; 
 
   const hash = ethers.keccak256(
-    // calcula o hash do commit
     hexStringToUint8Array(
-      // converte a string hex concatenada em array de bytes
-      keygame + optionStr, // concatena a keygame com o hex da opção do player 1
+      modifiedGameKey + optionStr,
     ),
   );
-  return { keygame, hash };
+
+  return { keygame: modifiedGameKey, hash };
 }
 
 const DEFAULT_BID = ethers.parseEther("0.01");
 
 describe("OddOrEven", function () {
-  let oddOrEven: any;
-  let owner: any;
-  let player1: any;
-  let player2: any;
+  let oddOrEven: any; // opção escolhida
+  let owner: any; // endereço do owner
+  let player1: any; // endereço P1
+  let player2: any; // endereço P2
 
   beforeEach(async () => {
+    // endereça os participantes com os endereços de testes
     [owner, player1, player2] = await ethers.getSigners();
-
+    // faz deploy na rede.
     oddOrEven = await ethers.deployContract("OddOrEven");
   });
 
+  // *********************** Começa os testes ************************
+
+  // 01 - Teste de Criação
   it("should have created", async function () {
-    let gameData = fetchGameData(await oddOrEven.gameData());
-    expect(gameData.optionP2).to.equal(-1);
+    let gameData = fetchGameData(await oddOrEven.gameData()); // Da um fetch no dados da BC
+    expect(gameData.optionP2).to.equal(-1); // espera um retorno de option nao escolhida ainda por P2
   });
 
+  // 02
   it("should init game", async function () {
+    // conecta a instancia de p1
     const player1Instance = oddOrEven.connect(player1);
-    const { hash: hashOptionP1In } = buildCommit(3);
-    let isOdd = false;
+    // chama a função aux com opção 3 e recebe o hash de (op + hex garantido que é par)
+    const { hash: hashOptionP1In } = buildCommit(3); // o retorno é keygame e o hash do P1, mas desestruturo e pego so o hash renomeado para hashOptionP1In
+    let isOdd = false; // paridade ímpar
 
+    // O P1 chama a função playerInit do contrato com a paridade, com o hash e com o valor padrão da transação
     await player1Instance.playerInit(isOdd, hashOptionP1In, {
       value: DEFAULT_BID,
     });
 
+    // quando receber um retorno da BC vem toda a estrutura de dados de GameData no objeto gameData
+    // extrai a opção do p1 e compara com o p1 IN
     let gameData = fetchGameData(await oddOrEven.gameData());
+    // garante que o hash recebido P1In é o mesmo que esta na estrutura de dados
     expect(gameData.hashOptionP1).to.equal(hashOptionP1In);
   });
 
+  // 03
   it("should NOT init game (Invalid Bid)", async function () {
     const player1Instance = oddOrEven.connect(player1); // reconecta usando o endereço do player 1
     const { hash: hashOptionP1In } = buildCommit(3);
