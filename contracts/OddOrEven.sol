@@ -4,7 +4,7 @@ import "./Keccak256Utils.sol";
 
 /**
  * @title Contract Odd or Even Peer-to-Peer
- * @author Carlos Augusto de Moraes Cruz
+ * @author Carlos Augusto de Moraes Cruz && Moisés Silva
  * @notice Provably Fair Gameplay - On-Chain Verification - Timeout Mechanism
  */
 contract OddOrEven{
@@ -24,20 +24,15 @@ contract OddOrEven{
         bytes keyGame;         // Player 1's keyGame
     }
 
-    // Instance of the struct
-    GameData public gameData;
-    // Keep the state of the last game until the end of the next
-    GameData public lastGameRecord;
+    GameData public gameData; // Instance of the struct
+    GameData public lastGameRecord; // Keep the state of the last game until the end of the next
 
-    // Immutable owner field
-    address payable public immutable owner;
-
+    address payable public immutable owner; // Immutable owner field
     uint256 public bidMin = 0.01 ether; // Valor mínimo para aposta. Se for aumentado (e pode ser), o player 2 precisa cobrir, pois, o bid passa a ser o novo valor.
     uint8 public commission = 1;      // Commission percentage. O criador do contrato ganha 1% sobre esse valor.
 
     constructor(){
         owner = payable (msg.sender);
-
         gameData.hashOptionP1 = 0; //hash da opcao do jogador 1
         gameData.timeOut = 60 * 20; // 20 min;
         gameData.timeOutP1 = 0; // Duração do lance do jogador 1, depois dele, o jogador 2 não pode mais aceitar o desafio, e o jogador 1 pode reivindicar a vitória ou cancelar o jogo;
@@ -67,10 +62,8 @@ contract OddOrEven{
         commission = newComission;
     }
 
-    /**
-     * Após finalizar o jogo, o reset deve ser chamado.
-     * O estado da ultima partida fica registrado em lastGameRecord
-    */
+    // Após finalizar o jogo, o reset deve ser chamado. 
+    // O estado da ultima partida fica registrado em lastGameRecord
     function resetGameFields() private{
 
         lastGameRecord = gameData; // mantem o estado do último jogo para consulta;
@@ -140,12 +133,14 @@ contract OddOrEven{
         // Devolve o saldo ao player 1 (menos o perc do owner).
         address contractAddress = address(this); 
         payable(
-            gameData.player1).transfer(
-                (contractAddress.balance / 100) * (100 - commission)
+            gameData.player1).transfer(  // player 1 recebe do contranto
+                (contractAddress.balance / 100) * (100 - commission) // o valor calculado
         );
 
+        // exemplo: payable(endereço_destino).transfer(endereço_origem)
+
         // Paga o perc. ao owner pelo uso do contrato.
-        owner.transfer(contractAddress.balance);
+        owner.transfer(contractAddress.balance); // pega o resto que sobrar no contrato.
         resetGameFields();
     }
 
