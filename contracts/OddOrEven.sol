@@ -4,7 +4,7 @@ import "./Keccak256Utils.sol";
 
 /**
  * @title Contract Odd or Even Peer-to-Peer
- * @author Carlos Augusto de Moraes Cruz && Moisés Silva
+ * @author Carlos Augusto de Moraes Cruz && Moisés Silva (ajustes)
  * @notice Provably Fair Gameplay - On-Chain Verification - Timeout Mechanism
  */
 contract OddOrEven{

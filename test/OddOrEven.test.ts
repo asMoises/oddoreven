@@ -228,7 +228,7 @@ describe("OddOrEven", function () {
     const { player1Instance, player2Instance } = connectPlayers();
     await initGame(player1Instance);
 
-    // o danado do p2 teta encerrar, mas ele nao pode.
+    // o danado do p2 tenta encerrar, mas ele nao pode.
     await expect(player2Instance.quitGame()).to.be.revertedWith(
       "Only player1 can quit the game",
     );
